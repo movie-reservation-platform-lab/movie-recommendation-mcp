@@ -1,11 +1,15 @@
-# axum-tools-mcp
+# Movie Recommendation MCP
 
-FastMCP wrapper around the Rust Axum recommendation API.
+FastMCP wrapper around the Rust movie recommendation API.
+
+This repository was extracted from
+`movie-reservation-platform-lab/movie-recommendation-service/axum-tools-mcp` so
+the MCP component can have an independent CI and artifact pipeline.
 
 ## Run
 
 ```sh
-uv run axum-tools-mcp
+uv run movie-recommendation-mcp
 ```
 
 Defaults:
@@ -16,7 +20,8 @@ Defaults:
 
 Useful environment variables:
 
-- `AXUM_TOOLS_API_URL`
+- `MOVIE_RECOMMENDATION_API_URL`
+- `AXUM_TOOLS_API_URL` for compatibility with the original demo extraction
 - `PORT`
 - `HOST`
 - `OTEL_SERVICE_NAME`

@@ -14,7 +14,7 @@ from axum_tools_mcp.recommendation_client import (
 )
 from axum_tools_mcp.telemetry import configure_telemetry, get_logger, log_event, tool_span
 
-SERVICE_NAME = "axum-tools-mcp"
+SERVICE_NAME = "movie-recommendation-mcp"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8092
 MAX_LIMIT = 20

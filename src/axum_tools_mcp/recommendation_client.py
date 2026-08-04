@@ -48,7 +48,12 @@ class RequestMetadata:
 
 class RecommendationClient:
     def __init__(self, base_url: str | None = None, timeout_seconds: float = 10.0) -> None:
-        self._base_url = (base_url or os.getenv("AXUM_TOOLS_API_URL") or DEFAULT_API_URL).rstrip("/")
+        self._base_url = (
+            base_url
+            or os.getenv("MOVIE_RECOMMENDATION_API_URL")
+            or os.getenv("AXUM_TOOLS_API_URL")
+            or DEFAULT_API_URL
+        ).rstrip("/")
         self._client = httpx.AsyncClient(base_url=self._base_url, timeout=timeout_seconds)
 
     async def close(self) -> None:

@@ -36,4 +36,4 @@ HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD \
   sh -c 'curl -fsS http://127.0.0.1:8092/health || exit 1'
 
 ENTRYPOINT ["/usr/bin/tini","--"]
-CMD ["axum-tools-mcp"]
+CMD ["movie-recommendation-mcp"]

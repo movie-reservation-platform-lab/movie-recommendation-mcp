@@ -1,7 +1,7 @@
 [project]
-name = "axum-tools-mcp"
+name = "movie-recommendation-mcp"
 version = "0.1.0"
-description = "FastMCP wrapper for the Axum movie recommendation demo API"
+description = "FastMCP wrapper for the movie recommendation API"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-axum-tools-mcp = "axum_tools_mcp.server:main"
+movie-recommendation-mcp = "axum_tools_mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]
