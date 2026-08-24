@@ -20,7 +20,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import SpanKind, Status, StatusCode
 
-SERVICE_NAME = "axum-tools-mcp"
+SERVICE_NAME = "movie-recommendation-mcp"
 
 _tracer = trace.get_tracer(SERVICE_NAME)
 _meter = metrics.get_meter(SERVICE_NAME)
@@ -55,7 +55,7 @@ def configure_telemetry() -> None:
     resource = Resource.create(
         {
             "service.name": os.getenv("OTEL_SERVICE_NAME", SERVICE_NAME),
-            "service.environment": "local",
+            "service.environment": os.getenv("DEPLOYMENT_ENVIRONMENT", "local"),
             "demo.name": "multi-service-observability",
         }
     )

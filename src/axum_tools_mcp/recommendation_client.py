@@ -47,21 +47,22 @@ class RequestMetadata:
 
 
 class RecommendationClient:
-    def __init__(self, base_url: str | None = None, timeout_seconds: float = 10.0) -> None:
+    def __init__(
+        self,
+        base_url: str | None = None,
+        timeout_seconds: float = 10.0,
+        http_client: httpx.AsyncClient | None = None,
+    ) -> None:
         self._base_url = (
-            base_url
-            or os.getenv("MOVIE_RECOMMENDATION_API_URL")
-            or os.getenv("AXUM_TOOLS_API_URL")
-            or DEFAULT_API_URL
+            base_url or os.getenv("MOVIE_RECOMMENDATION_API_URL") or os.getenv("AXUM_TOOLS_API_URL") or DEFAULT_API_URL
         ).rstrip("/")
-        self._client = httpx.AsyncClient(base_url=self._base_url, timeout=timeout_seconds)
+        self._client = http_client or httpx.AsyncClient(base_url=self._base_url, timeout=timeout_seconds)
 
     async def close(self) -> None:
         await self._client.aclose()
 
     async def health(self, metadata: RequestMetadata) -> dict[str, Any]:
-        response = await self._client.get("/health", headers=metadata.headers())
-        return response.json()
+        return await self._get_json("/health", headers=metadata.headers())
 
     async def recommendations(
         self,
@@ -74,8 +75,38 @@ class RecommendationClient:
         if preference is not None and preference.strip():
             params["preference"] = preference
 
-        response = await self._client.get("/recommendations", params=params, headers=metadata.headers())
-        payload = response.json()
+        return await self._get_json(
+            "/recommendations",
+            params=params,
+            headers=metadata.headers(),
+        )
+
+    async def _get_json(
+        self,
+        path: str,
+        *,
+        headers: dict[str, str],
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        try:
+            response = await self._client.get(path, params=params, headers=headers)
+        except httpx.HTTPError as exc:
+            raise RecommendationClientError(502, {"error": "dependency_unavailable"}) from exc
+
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise RecommendationClientError(
+                response.status_code,
+                {"error": "invalid_dependency_response"},
+            ) from exc
+
+        if not isinstance(payload, dict):
+            raise RecommendationClientError(
+                response.status_code,
+                {"error": "invalid_dependency_response"},
+            )
+
         if response.status_code >= 400:
             raise RecommendationClientError(response.status_code, payload)
 

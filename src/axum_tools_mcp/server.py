@@ -30,13 +30,13 @@ client = RecommendationClient()
 async def health_check(_request: Request) -> JSONResponse:
     try:
         downstream = await client.health(RequestMetadata())
-    except Exception as exc:
+    except RecommendationClientError as exc:
         log_event(
             logger,
             "mcp.health.failed",
             "MCP health check failed.",
-            error=str(exc),
             http_status=503,
+            dependency_status=exc.status_code,
         )
         return JSONResponse(
             {
@@ -103,22 +103,7 @@ async def recommendation_get_movies(
                 **fields,
                 http_status=exc.status_code,
             )
-            return {
-                "ok": False,
-                "service_name": SERVICE_NAME,
-                "fault": effective_fault or "none",
-                "status_code": exc.status_code,
-                "error": exc.payload.get("error", exc.payload),
-            }
-        except Exception as exc:
-            log_event(
-                logger,
-                "mcp.tool.failed",
-                "Recommendation tool failed unexpectedly.",
-                **fields,
-                error=str(exc),
-            )
-            raise
+            return downstream_error("recommendation_get_movies", effective_fault, exc)
 
     recommendations = payload.get("recommendations", [])
     log_event(
@@ -162,7 +147,17 @@ async def recommendation_health(
 
     log_event(logger, "mcp.tool.started", "Recommendation health tool started.", **fields)
     with tool_span("recommendation_health", fields):
-        payload = await client.health(metadata)
+        try:
+            payload = await client.health(metadata)
+        except RecommendationClientError as exc:
+            log_event(
+                logger,
+                "mcp.tool.failed",
+                "Recommendation health tool failed with downstream API error.",
+                **fields,
+                http_status=exc.status_code,
+            )
+            return downstream_error("recommendation_health", demo_fault, exc)
 
     log_event(logger, "mcp.tool.succeeded", "Recommendation health tool succeeded.", **fields)
     return {"ok": True, "service_name": SERVICE_NAME, "health": payload}
@@ -170,6 +165,21 @@ async def recommendation_health(
 
 def clamp_limit(limit: int) -> int:
     return max(1, min(limit, MAX_LIMIT))
+
+
+def downstream_error(
+    tool_name: str,
+    fault: str | None,
+    error: RecommendationClientError,
+) -> dict[str, Any]:
+    return {
+        "ok": False,
+        "service_name": SERVICE_NAME,
+        "tool_name": tool_name,
+        "fault": fault or "none",
+        "status_code": error.status_code,
+        "error": "recommendation_dependency_failed",
+    }
 
 
 def main() -> None:
