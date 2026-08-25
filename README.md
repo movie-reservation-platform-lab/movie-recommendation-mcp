@@ -12,6 +12,18 @@ the MCP component can have an independent CI and artifact pipeline.
 uv run movie-recommendation-mcp
 ```
 
+The production container runs as UID `10001` and listens on port `8092`:
+
+```sh
+docker build --tag movie-recommendation-mcp:local .
+docker run --rm --network host movie-recommendation-mcp:local
+```
+
+The demo assumes the MCP and recommendation API containers share one ECS task
+network namespace, so the default downstream address remains
+`127.0.0.1:8082`. Override the downstream URL when running the containers
+independently.
+
 Defaults:
 
 - MCP endpoint: `http://127.0.0.1:8092/mcp`
@@ -88,8 +100,14 @@ artifact, not as source code:
 
 ```sh
 uv sync --frozen
-uv run --frozen --no-sync pytest
+uv run --frozen --no-sync pytest tests
+uv run --frozen --no-sync pytest automation/tests
 uv run --frozen --no-sync ruff check .
 uv run --frozen --no-sync ruff format --check .
-uv run --frozen --no-sync python -m compileall src tests
+uv run --frozen --no-sync python -m compileall src tests automation
 ```
+
+Pushes to `main` publish a Linux AMD64 candidate to GHCR as
+`sha-<commit>`. CI disables BuildKit's automatic registry attestation to keep
+the candidate a single-image manifest, then records explicit GitHub build
+provenance against the published digest for the environment admission gate.
