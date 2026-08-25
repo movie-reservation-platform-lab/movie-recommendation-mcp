@@ -1,10 +1,19 @@
 # syntax=docker/dockerfile:1.7
 
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:python3.12-bookworm-slim
-FROM ${UV_IMAGE} AS base
+ARG PYTHON_IMAGE=python:3.12-slim-bookworm
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.12.3
 
-ENV PYTHONUNBUFFERED=1 \
+FROM ${UV_IMAGE} AS uv
+FROM ${PYTHON_IMAGE} AS base
+
+COPY --from=uv /uv /uvx /bin/
+
+ENV FASTMCP_CHECK_FOR_UPDATES=off \
+    PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
+    UV_PYTHON=/usr/local/bin/python3.12 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PYTHON_PREFERENCE=only-system \
     UV_PROJECT_ENVIRONMENT=/venv \
     VIRTUAL_ENV=/venv \
     PATH=/venv/bin:$PATH
@@ -16,13 +25,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 FROM base AS dependencies
-COPY pyproject.toml README.md uv.lock /app/
+COPY .python-version pyproject.toml README.md uv.lock /app/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-install-project --no-dev --frozen
 
 FROM dependencies AS build
 COPY src /app/src
-RUN uv sync --no-dev --compile-bytecode --no-editable
+RUN uv sync --no-dev --compile-bytecode --no-editable --frozen
 
 FROM base AS prod
 COPY --from=build /venv /venv

@@ -32,10 +32,17 @@ Useful environment variables:
 ## Tools
 
 - `recommendation_get_movies`
-  - Inputs: `limit`, optional `preference`, optional `fault`, and optional propagation fields.
+  - Inputs: `limit`, optional `preference`, optional `fault`, optional
+    `traceparent`, optional `tracestate`, optional `correlation_id`, optional
+    `request_id`, and optional `demo_fault`.
   - Calls Rust `GET /recommendations`.
+  - Success payload: `{"ok": true, "service_name": "movie-recommendation-mcp", "fault": "<fault-or-none>", "recommendations": [...]}`
+  - Downstream error payload: `{"ok": false, "service_name": "movie-recommendation-mcp", "fault": "<fault-or-none>", "status_code": <int>, "error": "recommendation_dependency_failed"}`
 - `recommendation_health`
+  - Inputs: optional `traceparent`, optional `tracestate`, optional
+    `correlation_id`, optional `request_id`, and optional `demo_fault`.
   - Calls Rust `GET /health`.
+  - Success payload: `{"ok": true, "service_name": "movie-recommendation-mcp", "health": {...}}`
 
 Both tools forward:
 
@@ -45,8 +52,44 @@ Both tools forward:
 - `X-Request-Id`
 - `X-Demo-Fault`
 
+## Extraction Decisions
+
+- Keep the internal Python import path as `axum_tools_mcp` for this extraction
+  slice. The public package, console script, service name, image, and repository
+  are already named `movie-recommendation-mcp`; renaming the import path would
+  add churn without changing the external MCP contract consumed by the agent.
+- Keep the tool names `recommendation_get_movies` and `recommendation_health`.
+  The proven reservation-agent demo allowlisted `recommendation_get_movies` and
+  called it with `limit`, `preference`, `fault`, and propagation arguments.
+- Keep `AXUM_TOOLS_API_URL` as a compatibility fallback, but prefer
+  `MOVIE_RECOMMENDATION_API_URL` for new runtime configuration.
+
+## Artifact Contract
+
+Platform infrastructure consumes this component as an immutable application
+artifact, not as source code:
+
+- OCI image built from this repository's `Dockerfile`.
+- Private ECR image reference pinned by digest:
+  `<account>.dkr.ecr.<region>.amazonaws.com/movie-recommendation-mcp@sha256:<64-hex-digest>`.
+- Separate release identifier, such as the Git commit SHA or release version,
+  recorded alongside the digest by the consuming environment/infra repository.
+- Runtime command: `movie-recommendation-mcp`.
+- Container port and default `PORT`: `8092`.
+- MCP endpoint: `/mcp`.
+- Health endpoint: `/health`.
+- Required runtime configuration is environment-driven; the downstream API URL
+  is supplied with `MOVIE_RECOMMENDATION_API_URL` or the compatibility fallback
+  `AXUM_TOOLS_API_URL`.
+- Deployment composition, environment manifests, promotion state, and AWS
+  resources stay outside this repository.
+
 ## Checks
 
 ```sh
-uv run python -m compileall src
+uv sync --frozen
+uv run --frozen --no-sync pytest
+uv run --frozen --no-sync ruff check .
+uv run --frozen --no-sync ruff format --check .
+uv run --frozen --no-sync python -m compileall src tests
 ```
