@@ -1,5 +1,4 @@
 .git
-.github
 .ai
 .claude
 .codex
@@ -7,10 +6,11 @@
 .gemini
 .roo
 .venv
-automation
+.platform-actions
+.local-container-security
+security-evidence
 build
 dist
-tests
 __pycache__
 .pytest_cache
 **/__pycache__
