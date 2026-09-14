@@ -19,6 +19,18 @@ docker build --tag movie-recommendation-mcp:local .
 docker run --rm --network host movie-recommendation-mcp:local
 ```
 
+The optional development target keeps `uv`, curl, source, and test tooling in a
+separate image without adding them to production:
+
+```sh
+docker build --target development --tag movie-recommendation-mcp:development .
+docker run --rm --network host movie-recommendation-mcp:development
+```
+
+The production target starts again from the clean Python runtime stage and
+copies only the built virtual environment. Adding development tools therefore
+does not change the published runtime contents.
+
 The demo assumes the MCP and recommendation API containers share one ECS task
 network namespace, so the default downstream address remains
 `127.0.0.1:8082`. Override the downstream URL when running the containers
@@ -116,14 +128,53 @@ provenance against the published digest for the environment admission gate.
 
 The pinned organization-owned actions publish the signed
 `recommendation-mcp-security-evidence-<run-id>-attempt-<attempt>` artifact:
-`component-candidate-evidence-v1alpha2.json`, verified image provenance,
+`component-candidate-evidence-v1alpha3.json`, verified image provenance,
 CycloneDX SBOM, and subject-bound vulnerability report. Evidence is retained
-for 14 days. Missing provenance or CRITICAL findings fail publication of the
-canonical evidence package; HIGH findings remain visible for admission review.
+for 14 days. Missing provenance or any CRITICAL finding without a current,
+exact central exemption fails publication of the canonical evidence package.
+Raw findings stay visible; covered findings produce `passed-with-exemptions`.
+HIGH findings remain visible for admission review.
 
 Run/attempt tags are discovery hints, not deployment selectors. Environment
 verification independently checks the successful canonical run and signed
 package before admitting its exact digest to ECR. This producer has no AWS
 credentials or deployment authority. Older runs without this package are not
 eligible for the new admission path; use a fresh successful main run.
-See [the shared action contract](https://github.com/movie-reservation-platform-lab/movie-platform-actions/blob/9b7b5a601367a45356687a0e1bf1d1638d62aca9/docs/container-candidate-actions.md).
+The environment reader must support v1alpha3 before admission. It independently
+reevaluates original findings against the latest approved central policy.
+See [the shared action contract](https://github.com/movie-reservation-platform-lab/movie-platform-actions/blob/bb40579c285df0b581c48b10f9b34574d5c78639/docs/container-candidate-actions.md).
+
+### PR and local vulnerability checks
+
+`container-security-check` builds the production linux/amd64 image on PRs and
+other non-canonical runs. It uses the same reviewed shared tooling and v1alpha3
+policy as publication, with only `contents: read`. The GitHub token is supplied
+only to the scan/evaluation step to read approved policy from the actions repo.
+An uncovered CRITICAL or a scanner/policy retrieval error fails the job.
+
+The complete report, policy decisions and summary are retained for 14 days as
+`recommendation-mcp-pr-vulnerability-report-<run>-attempt-<attempt>`, including
+after a failed gate. These local-image diagnostics are not signed candidate
+evidence. Canonical main publication independently scans its exact GHCR digest.
+
+To reproduce using a sibling actions checkout at the reviewed commit:
+
+```sh
+git -C ../movie-platform-actions rev-parse HEAD
+# Expected: bb40579c285df0b581c48b10f9b34574d5c78639
+docker build --pull --platform linux/amd64 --target prod \
+  --tag movie-recommendation-mcp:local .
+# Supply GH_TOKEN securely through your normal environment setup.
+node ../movie-platform-actions/local-tools/container-security/lib/scan.mjs \
+  movie-recommendation-mcp:local \
+  --evidence-version v1alpha3 --component recommendation-mcp
+```
+
+The helper writes an ignored `.local-container-security/run-*/` directory.
+Exit 0 means policy pass, 1 means blocking findings, and 2 means an operational
+or validation failure. Request exemptions separately in
+[the central governance repository](https://github.com/movie-reservation-platform-lab/movie-platform-actions/blob/bb40579c285df0b581c48b10f9b34574d5c78639/security-exemptions/README.md)
+using the exact CVE/package/version/PURL from the complete report and supporting
+applicability evidence. An unmerged request does not unblock the gate. After
+maintainer approval reaches central main, re-run the PR check; no new producer
+pin is needed for policy changes.
