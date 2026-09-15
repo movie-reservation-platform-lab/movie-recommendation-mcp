@@ -142,7 +142,24 @@ credentials or deployment authority. Older runs without this package are not
 eligible for the new admission path; use a fresh successful main run.
 The environment reader must support v1alpha3 before admission. It independently
 reevaluates original findings against the latest approved central policy.
-See [the shared action contract](https://github.com/movie-reservation-platform-lab/movie-platform-actions/blob/bb40579c285df0b581c48b10f9b34574d5c78639/docs/container-candidate-actions.md).
+See [the shared action contract](https://github.com/movie-reservation-platform-lab/movie-platform-actions/blob/036531133bcefd454b5afc0eb55f8ba0328901ea/docs/container-candidate-actions.md).
+
+This canary adopts [actions PR #18](https://github.com/movie-reservation-platform-lab/movie-platform-actions/pull/18)
+at `036531133bcefd454b5afc0eb55f8ba0328901ea` for both publisher actions and the
+PR/local scanner. Prepare receives `github-token: ${{ github.token }}` for its
+authenticated canonical-main lookup, using the publishing job's existing
+`contents: read` permission. The job's other permissions remain required;
+passing its token does not reduce that token's authority. This release also
+hardens evidence failure paths (including bounded legacy report reads and safe
+errors) and scanner cleanup. Evidence remains v1alpha3.
+
+Offline caller tests verify wiring and guards. Hosted PR scanning does not
+exercise prepare or prove private-repository access or canonical publication;
+those require separate live rollout acceptance. Publication remains restricted
+to push events on this repository's canonical main. Rollback reverts both action
+pins, the PR tooling checkout, and the documented local tooling pin to
+`bb40579c285df0b581c48b10f9b34574d5c78639`, and removes the new prepare token input
+together. See the [canary plan](docs/plans/authenticated-prepare-canary.md).
 
 ### PR and local vulnerability checks
 
@@ -161,7 +178,7 @@ To reproduce using a sibling actions checkout at the reviewed commit:
 
 ```sh
 git -C ../movie-platform-actions rev-parse HEAD
-# Expected: bb40579c285df0b581c48b10f9b34574d5c78639
+# Expected: 036531133bcefd454b5afc0eb55f8ba0328901ea
 docker build --pull --platform linux/amd64 --target prod \
   --tag movie-recommendation-mcp:local .
 # Supply GH_TOKEN securely through your normal environment setup.
@@ -173,7 +190,7 @@ node ../movie-platform-actions/local-tools/container-security/lib/scan.mjs \
 The helper writes an ignored `.local-container-security/run-*/` directory.
 Exit 0 means policy pass, 1 means blocking findings, and 2 means an operational
 or validation failure. Request exemptions separately in
-[the central governance repository](https://github.com/movie-reservation-platform-lab/movie-platform-actions/blob/bb40579c285df0b581c48b10f9b34574d5c78639/security-exemptions/README.md)
+[the central governance repository](https://github.com/movie-reservation-platform-lab/movie-platform-actions/blob/036531133bcefd454b5afc0eb55f8ba0328901ea/security-exemptions/README.md)
 using the exact CVE/package/version/PURL from the complete report and supporting
 applicability evidence. An unmerged request does not unblock the gate. After
 maintainer approval reaches central main, re-run the PR check; no new producer
