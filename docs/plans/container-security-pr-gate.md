@@ -32,13 +32,18 @@ and subsequent authorized canonical publication remain separate validation.
 
 ## Current implementation and acceptance
 
+The tooling pin below is updated by the
+[authenticated prepare canary](authenticated-prepare-canary.md). Earlier
+verification results retain the exact revisions used for those historical scans.
+
 - Preserve the prepared Trixie runtime minimization and development target.
 - Fresh 2026-09-14 inspection found Debian's fixed perl-base 5.40.1-6+deb13u1
   available. Refresh that installed base package in prod and rescan before
   requesting any exemption. If no CRITICAL remains, document that no request is
   needed rather than filing exemptions for obsolete package versions.
 - Pin both publisher actions and the PR tooling checkout to
-  `bb40579c285df0b581c48b10f9b34574d5c78639` (actions PR #13).
+  `036531133bcefd454b5afc0eb55f8ba0328901ea` (actions PR #18), supplying the
+  required prepare token with the existing publishing permissions.
 - Add `container-security-check` for non-canonical executions. Build prod for
   linux/amd64, then use the checked-in Node 24 helper with
   `--evidence-version v1alpha3 --component recommendation-mcp`.
