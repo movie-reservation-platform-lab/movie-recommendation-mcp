@@ -76,6 +76,11 @@ Both tools forward:
 - `X-Request-Id`
 - `X-Demo-Fault`
 
+The emitted metric, trace, resource, and structured-log contract is recorded in
+[the local producer evidence](docs/observability/recommendation-mcp-emitted-signals.md).
+Collector acceptance and live backend queryability are verified separately by
+the platform repositories.
+
 ## Extraction Decisions
 
 - Keep the internal Python import path as `axum_tools_mcp` for this extraction
