@@ -81,14 +81,18 @@ async def recommendation_get_movies(
     fields = {
         "tool_name": "recommendation_get_movies",
         "limit": bounded_limit,
-        "preference": preference,
         "fault": effective_fault or "none",
         "correlation_id": correlation_id,
         "request_id": request_id,
     }
 
-    log_event(logger, "mcp.tool.started", "Recommendation tool started.", **fields)
-    with tool_span("recommendation_get_movies", fields):
+    with tool_span(
+        "recommendation_get_movies",
+        fields,
+        traceparent=traceparent,
+        tracestate=tracestate,
+    ) as observation:
+        log_event(logger, "mcp.tool.started", "Recommendation tool started.", **fields)
         try:
             payload = await client.recommendations(
                 limit=bounded_limit,
@@ -103,16 +107,17 @@ async def recommendation_get_movies(
                 **fields,
                 http_status=exc.status_code,
             )
+            observation.record_failure("dependency_error")
             return downstream_error("recommendation_get_movies", effective_fault, exc)
 
-    recommendations = payload.get("recommendations", [])
-    log_event(
-        logger,
-        "mcp.tool.succeeded",
-        "Recommendation tool succeeded.",
-        **fields,
-        recommendation_count=len(recommendations),
-    )
+        recommendations = payload.get("recommendations", [])
+        log_event(
+            logger,
+            "mcp.tool.succeeded",
+            "Recommendation tool succeeded.",
+            **fields,
+            recommendation_count=len(recommendations),
+        )
     return {
         "ok": True,
         "service_name": SERVICE_NAME,
@@ -145,8 +150,13 @@ async def recommendation_health(
         "request_id": request_id,
     }
 
-    log_event(logger, "mcp.tool.started", "Recommendation health tool started.", **fields)
-    with tool_span("recommendation_health", fields):
+    with tool_span(
+        "recommendation_health",
+        fields,
+        traceparent=traceparent,
+        tracestate=tracestate,
+    ) as observation:
+        log_event(logger, "mcp.tool.started", "Recommendation health tool started.", **fields)
         try:
             payload = await client.health(metadata)
         except RecommendationClientError as exc:
@@ -157,9 +167,10 @@ async def recommendation_health(
                 **fields,
                 http_status=exc.status_code,
             )
+            observation.record_failure("dependency_error")
             return downstream_error("recommendation_health", demo_fault, exc)
 
-    log_event(logger, "mcp.tool.succeeded", "Recommendation health tool succeeded.", **fields)
+        log_event(logger, "mcp.tool.succeeded", "Recommendation health tool succeeded.", **fields)
     return {"ok": True, "service_name": SERVICE_NAME, "health": payload}
 
 
